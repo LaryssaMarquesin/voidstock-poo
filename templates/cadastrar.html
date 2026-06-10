@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block conteudo %}
+{% if msg %}<div class="note {{ msg_tipo }}" style="margin-bottom:16px;">{{ msg }}</div>{% endif %}
+<div class="card">
+  <h3>Cadastrar novo item</h3>
+  <form method="post" action="/cadastrar?user={{ usuario.id }}" class="form-grid">
+    <div class="field">
+      <label>Nome do item</label>
+      <input class="input" type="text" name="nome" placeholder="Ex.: Sensor de presença PIR" required />
+    </div>
+    <div class="field">
+      <label>Categoria</label>
+      <select class="input" name="categoria">
+        <option value="">—</option>
+        {% for c in categorias %}<option value="{{ c.nome }}">{{ c.nome }}</option>{% endfor %}
+      </select>
+    </div>
+    {% if sugestao %}<div class="note info">💡 Local sugerido: <b>{{ sugestao.nome }}</b> — {{ sugestao.motivo }}</div>{% endif %}
+    <div class="row">
+      <div class="field"><label>Estoque mínimo</label><input class="input" type="number" name="minimo" min="0" value="0" /></div>
+      <div class="field"><label>Quantidade inicial</label><input class="input" type="number" name="quantidade" min="0" value="0" /></div>
+    </div>
+    <div><button class="btn" type="submit">Cadastrar item</button></div>
+  </form>
+</div>
+{% endblock %}

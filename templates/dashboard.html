@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<!-- HERO (igual ao dashboard original) -->
+<div class="hero">
+  <div class="blob" style="top:-40px;right:-40px;width:280px;height:280px;background:rgba(126,42,144,0.2);"></div>
+  <div class="blob" style="bottom:-64px;left:-64px;width:280px;height:280px;background:rgba(242,103,34,0.15);"></div>
+  <p class="eyebrow">Visão geral</p>
+  <h2 class="text-gradient-brand">Bem-vindo ao seu estoque</h2>
+  <p>Monitore movimentações, identifique itens críticos e acompanhe a saúde do inventário em tempo real.</p>
+</div>
+
+<!-- KPIs -->
+<div class="kpis">
+  <div class="kpi purple">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+    <div class="v">{{ r.total_itens }}</div><div class="l">Itens cadastrados</div>
+  </div>
+  <div class="kpi cyan">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+    <div class="v">{{ r.total_unidades }}</div><div class="l">Unidades em estoque</div>
+  </div>
+  <div class="kpi red">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    <div class="v">{{ r.itens_criticos }}</div><div class="l">Itens críticos</div>
+  </div>
+  <div class="kpi green">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg>
+    <div class="v">{{ r.total_entradas }}</div><div class="l">Entradas</div>
+  </div>
+  <div class="kpi orange">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/></svg>
+    <div class="v">{{ r.total_saidas }}</div><div class="l">Saídas</div>
+  </div>
+</div>
+
+<!-- Grid: categorias + distribuição por local -->
+<div class="grid grid-2">
+  <div class="card">
+    <h3>Itens por categoria</h3>
+    {% for nome, qtd in por_categoria %}
+    <div class="bar-row">
+      <div class="bar-top"><span>{{ nome }}</span><span class="text-muted">{{ qtd }} itens</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width: {{ (qtd / max_cat * 100) if max_cat else 0 }}%;"></div></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Distribuição por local</h3>
+    {% for l in por_local %}
+    <div class="bar-row">
+      <div class="bar-top"><span>{{ l.nome }}</span><span class="text-muted">{{ l.itens }} itens · <b style="color:#fff">{{ l.unidades }}</b> un.</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width: {{ (l.unidades / max_local * 100) if max_local else 0 }}%;"></div></div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Críticos -->
+<div class="grid">
+  <div class="card">
+    <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Itens com estoque crítico</h3>
+    {% if criticos %}
+    <div class="crit-grid">
+      {% for i in criticos %}
+      <div class="crit-item">
+        <span>{{ i.nome }}</span>
+        <span class="qt"><b>{{ i.quantidade_atual }}</b> <span class="text-muted">/ min {{ i.estoque_minimo }}</span></span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted">Nenhum item abaixo do estoque mínimo. Boa gestão!</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block conteudo %}
+{% if msg %}<div class="note {{ msg_tipo }}" style="margin-bottom:16px;">{{ msg }}</div>{% endif %}
+
+<div class="card" style="margin-bottom:24px;">
+  <h3>Registrar movimentação</h3>
+  <form method="post" action="/movimentacoes?user={{ usuario.id }}" class="form-grid" style="max-width:none;">
+    <div class="row">
+      <div class="field">
+        <label>Item</label>
+        <select class="input" name="item_id">
+          {% for i in itens %}<option value="{{ i.id }}">{{ i.nome }} ({{ i.quantidade_atual }} un.)</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Tipo</label>
+        <select class="input" name="tipo"><option value="entrada">Entrada</option><option value="saida">Saída</option></select>
+      </div>
+      <div class="field">
+        <label>Quantidade</label>
+        <input class="input" type="number" name="quantidade" min="1" value="1" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Motivo (opcional)</label>
+      <input class="input" type="text" name="motivo" placeholder="Ex.: reposição, uso em projeto..." />
+    </div>
+    <div><button class="btn" type="submit">Registrar movimentação</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg> Histórico</h3>
+  {% if movimentacoes %}
+  <table class="vs">
+    <thead><tr><th>Quando</th><th>Tipo</th><th>Item</th><th class="right">Qtd.</th><th>Por</th><th>Motivo</th></tr></thead>
+    <tbody>
+      {% for m in movimentacoes %}
+      <tr>
+        <td class="text-muted">{{ m.criado_em.strftime('%d/%m %H:%M') }}</td>
+        <td>{% if m.tipo.value=='entrada' %}<span class="pill ok">entrada</span>{% else %}<span class="pill crit">saída</span>{% endif %}</td>
+        <td><b>{{ m.item.nome }}</b></td>
+        <td class="right">{{ m.quantidade }}</td>
+        <td class="text-muted">{{ m.usuario.nome }}</td>
+        <td class="text-muted">{{ m.motivo or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="text-muted">Sem movimentações ainda.</p>{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VoidStock — {{ titulo }}</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <!-- SIDEBAR (igual ao AppShell original) -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="/static/voidstock-logo.png" alt="VoidStock" />
+      </div>
+      <nav class="nav">
+        {% set ico = {
+          'dashboard': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>',
+          'inventario': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
+          'movimentacoes': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>',
+          'cadastrar': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>'
+        } %}
+        <a href="/?user={{ usuario.id }}" class="{{ 'active' if pagina=='dashboard' }}">{{ ico['dashboard']|safe }} Dashboard</a>
+        <a href="/inventario?user={{ usuario.id }}" class="{{ 'active' if pagina=='inventario' }}">{{ ico['inventario']|safe }} Inventário</a>
+        <a href="/movimentacoes?user={{ usuario.id }}" class="{{ 'active' if pagina=='movimentacoes' }}">{{ ico['movimentacoes']|safe }} Movimentações</a>
+        {% if usuario.pode_gerenciar() %}
+        <div class="group-label">Administração</div>
+        <a href="/cadastrar?user={{ usuario.id }}" class="{{ 'active' if pagina=='cadastrar' }}">{{ ico['cadastrar']|safe }} Cadastrar item</a>
+        {% endif %}
+      </nav>
+      <div class="user">
+        <form method="get" action="/" style="padding:0 12px 8px;">
+          <label class="role" style="display:block;margin-bottom:4px;">Trocar usuário</label>
+          <select name="user" class="input" style="width:100%;height:34px;" onchange="this.form.submit()">
+            {% for u in usuarios %}
+            <option value="{{ u.id }}" {{ 'selected' if u.id==usuario.id }}>{{ u.nome }} · {{ u.papel.value }}</option>
+            {% endfor %}
+          </select>
+        </form>
+        <div class="user-row">
+          <div class="avatar">{{ usuario.nome[0]|upper }}</div>
+          <div class="user-meta">
+            <div class="name">{{ usuario.nome }}</div>
+            <div class="role">{{ 'Coordenador' if usuario.pode_gerenciar() else 'Usuário' }}</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CONTEÚDO -->
+    <div class="content">
+      <header class="topbar">
+        <h1>{{ titulo }}</h1>
+        {% block actions %}{% endblock %}
+      </header>
+      <main>
+        {% block conteudo %}{% endblock %}
+      </main>
+    </div>
+  </div>
+</body>
+</html>

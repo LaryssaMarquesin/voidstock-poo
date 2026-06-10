@@ -5,12 +5,15 @@ Sistema de **controle de estoque para laboratórios técnicos**, reescrito em
 Objetos) do projeto VoidStock — equipes técnicas registram, localizam e
 controlam componentes (sensores, microcontroladores, ferramentas).
 
-Roda de duas formas:
+Roda de três formas:
 
+- **Web fiel (FastAPI):** `python -m uvicorn web_app:app --reload` →
+  http://localhost:8000 — recria o layout do app original (sidebar, hero,
+  KPIs, tabelas) com o CSS de marca. **Recomendado para apresentar.**
 - **Console (CLI):** `python main.py` — zero dependências, roda em qualquer
   Python 3.10+ (Replit, Colab, terminal).
-- **Web (visual):** `streamlit run app.py` — interface com a identidade
-  visual do VoidStock (roxo/laranja). Deploy gratuito no Streamlit Cloud.
+- **Web simples (Streamlit):** `python -m streamlit run app.py` — alternativa
+  rápida de deploy.
 
 ---
 

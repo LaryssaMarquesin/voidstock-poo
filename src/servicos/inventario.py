@@ -92,15 +92,40 @@ class Inventario:
         return [i for i in self.itens() if i.esta_critico()]
 
     def relatorio(self) -> dict:
+        from src.dominio.tipos import TipoMovimentacao
+
         itens = self.itens()
+        entradas = sum(1 for m in self._movimentacoes if m.tipo == TipoMovimentacao.ENTRADA)
+        saidas = sum(1 for m in self._movimentacoes if m.tipo == TipoMovimentacao.SAIDA)
         return {
             "total_itens": len(itens),
             "total_unidades": sum(i.quantidade_atual for i in itens),
             "itens_criticos": len(self.itens_criticos()),
             "total_movimentacoes": len(self._movimentacoes),
+            "total_entradas": entradas,
+            "total_saidas": saidas,
             "total_locais": len(self._locais),
             "total_categorias": len(self._categorias),
         }
+
+    def itens_por_categoria(self) -> list[tuple[str, int]]:
+        contagem = Counter()
+        for i in self.itens():
+            contagem[i.categoria.nome if i.categoria else "Sem categoria"] += 1
+        return sorted(contagem.items(), key=lambda x: -x[1])
+
+    def distribuicao_por_local(self) -> list[dict]:
+        resultado = []
+        for l in self.locais():
+            itens = [i for i in self.itens() if i.local and i.local.id == l.id]
+            resultado.append(
+                {
+                    "nome": l.nome,
+                    "itens": len(itens),
+                    "unidades": sum(i.quantidade_atual for i in itens),
+                }
+            )
+        return sorted(resultado, key=lambda x: -x["unidades"])
 
     def sugerir_local(self, categoria: Categoria | None) -> tuple[Local | None, str]:
         """Sugere onde guardar um item novo.

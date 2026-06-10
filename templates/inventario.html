@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block actions %}
+  {% if usuario.pode_gerenciar() %}
+  <a class="btn" href="/cadastrar?user={{ usuario.id }}">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+    Novo item
+  </a>
+  {% endif %}
+{% endblock %}
+{% block conteudo %}
+<form class="toolbar" method="get" action="/inventario">
+  <input type="hidden" name="user" value="{{ usuario.id }}" />
+  <input class="input search" type="search" name="q" value="{{ q }}" placeholder="Buscar por nome ou descrição..." />
+  <select class="input" name="cat" onchange="this.form.submit()">
+    <option value="">Todas categorias</option>
+    {% for c in categorias %}<option value="{{ c.nome }}" {{ 'selected' if c.nome==cat }}>{{ c.nome }}</option>{% endfor %}
+  </select>
+  <button class="btn btn-ghost" type="submit">Filtrar</button>
+</form>
+
+<div class="table-wrap">
+  {% if itens %}
+  <table class="vs">
+    <thead>
+      <tr><th>Item</th><th>Categoria</th><th>Local</th><th class="right">Quantidade</th><th class="right">Mínimo</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {% for i in itens %}
+      <tr>
+        <td><b>{{ i.nome }}</b></td>
+        <td class="text-muted">{{ i.categoria.nome if i.categoria else '—' }}</td>
+        <td class="text-muted">{{ i.local.nome if i.local else '—' }}</td>
+        <td class="right qt {{ 'crit' if i.esta_critico() }}">{{ i.quantidade_atual }}</td>
+        <td class="right text-muted">{{ i.estoque_minimo }}</td>
+        <td>{% if i.esta_critico() %}<span class="pill crit">crítico</span>{% else %}<span class="pill ok">ok</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="padding:32px;text-align:center;" class="text-muted">Nenhum item encontrado.</div>
+  {% endif %}
+</div>
+{% endblock %}
