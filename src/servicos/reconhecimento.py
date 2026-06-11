@@ -53,9 +53,13 @@ class Reconhecedor(ABC):
 
 
 class ReconhecedorGemini(Reconhecedor):
-    """Implementação usando a API oficial do Google Gemini."""
+    """Implementação usando a API oficial do Google Gemini.
 
-    MODELO = "gemini-2.5-flash"
+    Tenta uma lista de modelos em ordem: o primeiro é o mais estável; se ele
+    estiver sobrecarregado (503), cai para o próximo automaticamente.
+    """
+
+    MODELOS = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest"]
 
     def __init__(self, api_key: str | None = None) -> None:
         self._api_key = api_key or os.environ.get("GEMINI_API_KEY")
@@ -86,12 +90,23 @@ class ReconhecedorGemini(Reconhecedor):
             ],
             "generationConfig": {"responseMimeType": "application/json"},
         }
-        url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self.MODELO}:generateContent"
-        )
         dados_req = json.dumps(corpo).encode()
-        resultado = self._chamar_com_retry(url, dados_req)
+        resultado = None
+        ultimo_erro: ErroReconhecimento | None = None
+        for modelo in self.MODELOS:
+            url = (
+                f"https://generativelanguage.googleapis.com/v1beta/models/"
+                f"{modelo}:generateContent"
+            )
+            try:
+                resultado = self._chamar_com_retry(url, dados_req)
+                break
+            except ErroReconhecimento as e:
+                ultimo_erro = e
+                print(f"[IA] modelo {modelo} falhou: {e}", file=sys.stderr)
+                continue
+        if resultado is None:
+            raise ultimo_erro or ErroReconhecimento("Falha no reconhecimento.")
 
         texto = (
             resultado.get("candidates", [{}])[0]
