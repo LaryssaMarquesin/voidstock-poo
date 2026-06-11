@@ -1,7 +1,3 @@
-databases:
-  - name: voidstock-db
-    plan: free
-
 services:
   - type: web
     name: voidstock-poo
@@ -12,7 +8,5 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.4
-      - key: DATABASE_URL
-        fromDatabase:
-          name: voidstock-db
-          property: connectionString
+      # DATABASE_URL é configurada diretamente no serviço (banco Postgres
+      # 'voidstock-db' provisionado no Render), não pelo Blueprint.
