@@ -15,7 +15,8 @@ from src.dominio.categoria import Categoria
 from src.dominio.item import Item
 from src.dominio.local import Local
 from src.dominio.movimentacao import Entrada, Movimentacao, Saida
-from src.dominio.usuario import Usuario
+from src.dominio.tipos import Papel
+from src.dominio.usuario import Usuario, criar_usuario
 from src.repositorio.repositorio import RepositorioEmMemoria
 
 
@@ -36,6 +37,44 @@ class Inventario:
 
     def adicionar_usuario(self, usuario: Usuario) -> Usuario:
         return self._usuarios.adicionar(usuario)
+
+    def buscar_usuario(self, user_id: str) -> Usuario | None:
+        return self._usuarios.buscar(user_id)
+
+    def criar_usuario(self, nome: str, email: str, papel: Papel, solicitante: Usuario) -> Usuario:
+        """Cria um usuário (admin ou comum). Só coordenadores podem."""
+        self._exigir_gestor(solicitante)
+        if not nome.strip():
+            raise ValueError("Nome é obrigatório")
+        email = email.strip().lower()
+        if "@" not in email:
+            raise ValueError("E-mail inválido")
+        if any(u.email == email for u in self._usuarios.listar()):
+            raise ValueError("Já existe um usuário com este e-mail")
+        return self._usuarios.adicionar(criar_usuario(nome, email, papel))
+
+    def alterar_papel(self, usuario: Usuario, papel: Papel, solicitante: Usuario) -> Usuario:
+        """Troca o papel de um usuário. Como o papel é a subclasse, recria a
+        instância correta preservando a identidade (id)."""
+        self._exigir_gestor(solicitante)
+        if usuario.papel == papel:
+            return usuario
+        if usuario.papel == Papel.ADMIN and self._contar_admins() <= 1:
+            raise ValueError("Não é possível rebaixar o último coordenador")
+        novo = criar_usuario(usuario.nome, usuario.email, papel)
+        novo.restaurar_id(usuario.id)
+        return self._usuarios.adicionar(novo)  # mesma chave id -> substitui
+
+    def remover_usuario(self, usuario: Usuario, solicitante: Usuario) -> bool:
+        self._exigir_gestor(solicitante)
+        if usuario.id == solicitante.id:
+            raise ValueError("Você não pode remover o próprio usuário")
+        if usuario.papel == Papel.ADMIN and self._contar_admins() <= 1:
+            raise ValueError("Não é possível remover o último coordenador")
+        return self._usuarios.remover(usuario.id)
+
+    def _contar_admins(self) -> int:
+        return sum(1 for u in self._usuarios.listar() if u.papel == Papel.ADMIN)
 
     def categorias(self) -> list[Categoria]:
         return self._categorias.listar()
@@ -66,6 +105,21 @@ class Inventario:
         if quantidade_inicial > 0:
             self.registrar_entrada(item, quantidade_inicial, solicitante, "Cadastro inicial")
         return item
+
+    def atualizar_item(
+        self, item: Item, solicitante: Usuario, nome: str, estoque_minimo: int,
+        categoria: Categoria | None, local: Local | None, descricao: str | None,
+        imagem_url: str | None = None,
+    ) -> Item:
+        """Edita um item existente. Só quem `pode_gerenciar()` tem permissão."""
+        self._exigir_gestor(solicitante)
+        item.atualizar(nome, estoque_minimo, categoria, local, descricao)
+        if imagem_url is not None:
+            item.definir_imagem(imagem_url or None)
+        return item
+
+    def buscar_item(self, item_id: str) -> Item | None:
+        return self._itens.buscar(item_id)
 
     def remover_item(self, item: Item, solicitante: Usuario) -> bool:
         self._exigir_gestor(solicitante)

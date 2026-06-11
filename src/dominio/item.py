@@ -86,6 +86,26 @@ class Item(Entidade):
     def definir_local(self, local: Local | None) -> None:
         self._local = local
 
+    def atualizar(
+        self,
+        nome: str,
+        estoque_minimo: int,
+        categoria: Categoria | None,
+        local: Local | None,
+        descricao: str | None,
+    ) -> None:
+        """Edita os dados cadastrais do item (não altera a quantidade, que só
+        muda por movimentações)."""
+        if not nome.strip():
+            raise ValueError("Nome é obrigatório")
+        if estoque_minimo < 0:
+            raise ValueError("Estoque mínimo não pode ser negativo")
+        self._nome = nome.strip()
+        self._estoque_minimo = estoque_minimo
+        self._categoria = categoria
+        self._local = local
+        self._descricao = descricao
+
     def __str__(self) -> str:
         cat = self._categoria.nome if self._categoria else "sem categoria"
         return f"{self._nome} [{cat}] — {self._quantidade_atual} un."

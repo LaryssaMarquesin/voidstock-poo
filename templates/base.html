@@ -19,7 +19,8 @@
           'inventario': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
           'movimentacoes': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>',
           'relatorios': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
-          'cadastrar': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>'
+          'cadastrar': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
+          'usuarios': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
         } %}
         <a href="/?user={{ usuario.id }}" class="{{ 'active' if pagina=='dashboard' }}">{{ ico['dashboard']|safe }} Dashboard</a>
         <a href="/inventario?user={{ usuario.id }}" class="{{ 'active' if pagina=='inventario' }}">{{ ico['inventario']|safe }} Inventário</a>
@@ -28,6 +29,7 @@
         {% if usuario.pode_gerenciar() %}
         <div class="group-label">Administração</div>
         <a href="/cadastrar?user={{ usuario.id }}" class="{{ 'active' if pagina=='cadastrar' }}">{{ ico['cadastrar']|safe }} Cadastrar item</a>
+        <a href="/admin/usuarios?user={{ usuario.id }}" class="{{ 'active' if pagina=='usuarios' }}">{{ ico['usuarios']|safe }} Usuários</a>
         {% endif %}
       </nav>
       <div class="user">

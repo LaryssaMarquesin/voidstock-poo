@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block conteudo %}
+{% if msg %}<div class="note {{ msg_tipo }}" style="margin-bottom:16px;">{{ msg }}</div>{% endif %}
+
+<div class="grid grid-2" style="margin-top:0;align-items:start;">
+  <!-- NOVO USUÁRIO -->
+  <div class="card">
+    <h3>Novo usuário</h3>
+    <form method="post" action="/admin/usuarios?user={{ usuario.id }}" class="form-grid" style="max-width:none;">
+      <div class="field"><label>Nome</label><input class="input" type="text" name="nome" required></div>
+      <div class="field"><label>E-mail</label><input class="input" type="email" name="email" required></div>
+      <div class="field">
+        <label>Papel</label>
+        <select class="input" name="papel">
+          <option value="user">Usuário</option>
+          <option value="admin">Coordenador</option>
+        </select>
+      </div>
+      <div><button class="btn" type="submit">Criar usuário</button></div>
+    </form>
+  </div>
+
+  <!-- INFO -->
+  <div class="card">
+    <h3>Sobre os papéis</h3>
+    <p class="text-muted" style="font-size:13px;line-height:1.6;">
+      <b style="color:#fff;">Coordenador</b> — gerencia o catálogo: cadastra/edita/exclui itens,
+      gerencia usuários.<br><br>
+      <b style="color:#fff;">Usuário</b> — registra movimentações (entradas/saídas), mas não
+      altera o catálogo nem os usuários.
+    </p>
+  </div>
+</div>
+
+<!-- LISTA -->
+<div class="grid">
+  <div class="card" style="padding:0;overflow:hidden;">
+    <table class="vs">
+      <thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Ações</th></tr></thead>
+      <tbody>
+        {% for u in lista %}
+        <tr>
+          <td><div class="item-cell"><div class="avatar" style="height:32px;width:32px;font-size:13px;">{{ u.nome[0]|upper }}</div><b>{{ u.nome }}</b></div></td>
+          <td class="text-muted">{{ u.email }}</td>
+          <td>
+            {% if u.pode_gerenciar() %}<span class="pill" style="background:rgba(126,42,144,0.25);color:#c89bd6;">Coordenador</span>
+            {% else %}<span class="pill ok">Usuário</span>{% endif %}
+          </td>
+          <td>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <form method="post" action="/admin/usuarios/{{ u.id }}/papel?user={{ usuario.id }}" style="display:flex;gap:6px;">
+                <select name="papel" class="input" style="height:32px;padding:0 8px;font-size:13px;">
+                  <option value="user" {{ 'selected' if not u.pode_gerenciar() }}>Usuário</option>
+                  <option value="admin" {{ 'selected' if u.pode_gerenciar() }}>Coordenador</option>
+                </select>
+                <button class="btn btn-ghost" type="submit" style="height:32px;padding:0 10px;font-size:13px;">Aplicar</button>
+              </form>
+              <form method="post" action="/admin/usuarios/{{ u.id }}/excluir?user={{ usuario.id }}"
+                    onsubmit="return confirm('Remover {{ u.nome }}?');">
+                <button class="btn" type="submit" style="height:32px;padding:0 10px;font-size:13px;background:linear-gradient(135deg,#9b1c31,#f26722);">Excluir</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

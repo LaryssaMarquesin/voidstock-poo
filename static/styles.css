@@ -155,6 +155,15 @@ main { padding: 28px; max-width: 1200px; width: 100%; margin: 0 auto; }
 .input:focus { border-color: var(--brand-orange); }
 .input.search { flex: 1; min-width: 220px; }
 
+/* Corrige o menu dos selects (evita texto claro em fundo branco do SO) */
+select.input { color: var(--foreground); }
+select.input option,
+select option {
+  background-color: #1a1424;
+  color: #ececf1;
+}
+select option:checked { background-color: var(--brand-purple-deep); color: #fff; }
+
 .table-wrap { border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); background: var(--card); overflow: hidden; }
 table.vs { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.vs thead { background: rgba(255,255,255,0.05); }

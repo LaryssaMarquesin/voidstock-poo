@@ -18,6 +18,11 @@ class Entidade:
     def id(self) -> str:
         return self._id
 
+    def restaurar_id(self, id: str) -> None:
+        """Preserva a identidade ao reconstruir a entidade (ex.: troca de papel
+        de um usuário, que troca a subclasse mas mantém o mesmo id)."""
+        self._id = id
+
     def __eq__(self, outro: object) -> bool:
         return isinstance(outro, Entidade) and outro._id == self._id
 

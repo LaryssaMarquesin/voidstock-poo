@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block actions %}
+  <a class="btn btn-ghost" href="/inventario?user={{ usuario.id }}">← Voltar ao inventário</a>
+{% endblock %}
+{% block conteudo %}
+{% if msg %}<div class="note {{ msg_tipo }}" style="margin-bottom:16px;">{{ msg }}</div>{% endif %}
+
+{% if not usuario.pode_gerenciar() %}
+<div class="note err">🔒 Acesso restrito a coordenadores. Troque o usuário na barra lateral para editar.</div>
+{% else %}
+<div class="grid grid-2" style="margin-top:0;align-items:start;">
+  <!-- IMAGEM -->
+  <div class="card">
+    <h3>Imagem do item</h3>
+    <img id="preview" src="{{ item.imagem_url or '/static/img/gen/resistores.svg' }}" alt=""
+         style="width:100%;height:220px;object-fit:contain;background:#1a1424;border-radius:12px;border:1px solid rgba(255,255,255,0.08);">
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+      <label class="btn btn-ghost" style="cursor:pointer;">
+        Trocar foto
+        <input id="foto" type="file" accept="image/*" capture="environment" style="display:none" {{ '' if ia_disponivel else 'disabled' }}>
+      </label>
+      <button type="button" class="btn btn-ghost" id="btnRemover">Remover imagem</button>
+    </div>
+    <div id="iaStatus" class="note info" style="margin-top:12px;display:none;"></div>
+    {% if not ia_disponivel %}<p class="text-muted" style="font-size:12px;margin-top:10px;">IA indisponível (sem GEMINI_API_KEY) — você pode trocar a foto, mas sem auto-preenchimento.</p>{% endif %}
+  </div>
+
+  <!-- DADOS -->
+  <div class="card">
+    <h3>Dados do item</h3>
+    <form method="post" action="/inventario/{{ item.id }}?user={{ usuario.id }}" class="form-grid" style="max-width:none;">
+      <input type="hidden" name="imagem_url" id="imagem_url" value="">
+      <div class="field">
+        <label>Nome</label>
+        <input class="input" type="text" name="nome" id="nome" value="{{ item.nome }}" required>
+      </div>
+      <div class="field">
+        <label>Categoria</label>
+        <select class="input" name="categoria" id="categoria">
+          <option value="">—</option>
+          {% for c in categorias %}<option value="{{ c.nome }}" {{ 'selected' if item.categoria and item.categoria.id==c.id }}>{{ c.nome }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Local</label>
+        <select class="input" name="local">
+          <option value="">—</option>
+          {% for l in locais %}<option value="{{ l.nome }}" {{ 'selected' if item.local and item.local.id==l.id }}>{{ l.nome }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Descrição</label>
+        <input class="input" type="text" name="descricao" id="descricao" value="{{ item.descricao or '' }}">
+      </div>
+      <div class="row">
+        <div class="field"><label>Estoque mínimo</label><input class="input" type="number" name="minimo" min="0" value="{{ item.estoque_minimo }}"></div>
+        <div class="field">
+          <label>Quantidade atual</label>
+          <input class="input" type="number" value="{{ item.quantidade_atual }}" disabled style="opacity:.6">
+        </div>
+      </div>
+      <p class="text-muted" style="font-size:12px;margin:0;">A quantidade só muda por movimentações (entradas/saídas).</p>
+      <div><button class="btn" type="submit">Salvar alterações</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- EXCLUIR -->
+<div class="grid">
+  <div class="card" style="border-color:rgba(244,63,94,0.25);">
+    <h3 style="color:#fb7185;">Zona de perigo</h3>
+    <p class="text-muted" style="font-size:13px;margin-bottom:12px;">Excluir o item remove também o histórico de movimentações dele. Esta ação não pode ser desfeita.</p>
+    <form method="post" action="/inventario/{{ item.id }}/excluir?user={{ usuario.id }}" onsubmit="return confirm('Excluir &quot;{{ item.nome }}&quot;? Esta ação não pode ser desfeita.');">
+      <button class="btn" type="submit" style="background:linear-gradient(135deg,#9b1c31,#f26722);">Excluir item</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function redimensionar(file, maxLado = 768) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxLado || height > maxLado) {
+        if (width >= height) { height = Math.round(height * maxLado / width); width = maxLado; }
+        else { width = Math.round(width * maxLado / height); height = maxLado; }
+      }
+      const c = document.createElement("canvas");
+      c.width = width; c.height = height;
+      c.getContext("2d").drawImage(img, 0, 0, width, height);
+      resolve(c.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = reject; img.src = url;
+  });
+}
+
+document.getElementById("btnRemover").addEventListener("click", () => {
+  document.getElementById("imagem_url").value = "REMOVER";
+  document.getElementById("preview").src = "/static/img/gen/resistores.svg";
+  const s = document.getElementById("iaStatus");
+  s.style.display = "block"; s.className = "note warn"; s.textContent = "Imagem será removida ao salvar.";
+});
+
+const foto = document.getElementById("foto");
+if (foto) foto.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  let dataUrl;
+  try { dataUrl = await redimensionar(file); }
+  catch { dataUrl = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(file); }); }
+  document.getElementById("preview").src = dataUrl;
+  document.getElementById("imagem_url").value = dataUrl;
+  const status = document.getElementById("iaStatus");
+  status.style.display = "block"; status.className = "note info"; status.textContent = "🔍 Identificando com IA...";
+  try {
+    const resp = await fetch("/api/identificar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageDataUrl: dataUrl }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.erro || "Falha no reconhecimento");
+    if (data.nome) document.getElementById("nome").value = data.nome;
+    if (data.descricao) document.getElementById("descricao").value = data.descricao;
+    if (data.categoria) {
+      const sel = document.getElementById("categoria");
+      for (const opt of sel.options) {
+        if (opt.value.toLowerCase() === data.categoria.toLowerCase()) { sel.value = opt.value; break; }
+      }
+    }
+    status.className = "note ok";
+    status.textContent = "✓ Identificado: " + (data.nome || "—") + " · " + (data.categoria || "—");
+  } catch (err) {
+    status.className = "note err"; status.textContent = "✘ " + err.message;
+  }
+});
+</script>
+{% endif %}
+{% endblock %}

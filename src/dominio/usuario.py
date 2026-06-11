@@ -60,3 +60,10 @@ class UsuarioComum(Usuario):
 
     def pode_gerenciar(self) -> bool:
         return False
+
+
+def criar_usuario(nome: str, email: str, papel: Papel) -> Usuario:
+    """Fábrica polimórfica: o papel determina a subclasse instanciada."""
+    if papel == Papel.ADMIN:
+        return Administrador(nome, email)
+    return UsuarioComum(nome, email)
