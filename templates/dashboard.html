@@ -79,8 +79,9 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="/static/vendor/chart.umd.min.js"></script>
 <script>
+if (window.Chart) {
 const PALETTE = ["#7e2a90","#f26722","#4dd4e0","#ffa14a","#4a1556","#b94fc9","#e84a8a"];
 Chart.defaults.color = "#a39db8";
 Chart.defaults.font.family = "Inter, sans-serif";
@@ -127,5 +128,6 @@ new Chart(chartTop, {
   data: { labels:top.map(t=>t[0]), datasets:[{ data:top.map(t=>t[1]), backgroundColor:PALETTE, borderRadius:6 }] },
   options: { indexAxis:"y", maintainAspectRatio:false, plugins:{tooltip:tip, legend:{display:false}} }
 });
+}
 </script>
 {% endblock %}

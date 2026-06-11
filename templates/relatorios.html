@@ -40,8 +40,9 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="/static/vendor/chart.umd.min.js"></script>
 <script>
+if (window.Chart) {
 const PALETTE = ["#7e2a90","#f26722","#4dd4e0","#ffa14a","#4a1556","#b94fc9","#e84a8a"];
 Chart.defaults.color = "#a39db8"; Chart.defaults.font.family = "Inter, sans-serif";
 Chart.defaults.borderColor = "rgba(255,255,255,0.06)";
@@ -63,5 +64,6 @@ new Chart(chartCat, {
   data:{ labels:cats.map(c=>c[0]), datasets:[{ data:cats.map(c=>c[1]), backgroundColor:PALETTE, borderWidth:0 }] },
   options:{ maintainAspectRatio:false, cutout:"58%", plugins:{tooltip:tip, legend:{position:"bottom",labels:{boxWidth:10,font:{size:10}}}} }
 });
+}
 </script>
 {% endblock %}
