@@ -63,13 +63,37 @@
 </div>
 
 <script>
+// Reduz a imagem no navegador (máx 1024px, JPEG ~0.8) antes de enviar à IA.
+// Evita falhas com fotos grandes de celular e acelera o reconhecimento.
+function redimensionar(file, maxLado = 1024) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxLado || height > maxLado) {
+        if (width >= height) { height = Math.round(height * maxLado / width); width = maxLado; }
+        else { width = Math.round(width * maxLado / height); height = maxLado; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 const foto = document.getElementById("foto");
 if (foto) foto.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const dataUrl = reader.result;
+  {
+    let dataUrl;
+    try { dataUrl = await redimensionar(file); }
+    catch { dataUrl = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(file); }); }
     document.getElementById("preview").src = dataUrl;
     document.getElementById("previewBox").style.display = "block";
     document.getElementById("imagem_url").value = dataUrl;  // guarda a imagem para salvar
@@ -99,8 +123,7 @@ if (foto) foto.addEventListener("change", async (e) => {
       status.className = "note err";
       status.textContent = "✘ " + err.message;
     }
-  };
-  reader.readAsDataURL(file);
+  }
 });
 </script>
 {% endblock %}
