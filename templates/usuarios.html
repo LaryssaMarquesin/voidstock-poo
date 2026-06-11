@@ -9,6 +9,7 @@
     <form method="post" action="/admin/usuarios?user={{ usuario.id }}" class="form-grid" style="max-width:none;">
       <div class="field"><label>Nome</label><input class="input" type="text" name="nome" required></div>
       <div class="field"><label>E-mail</label><input class="input" type="email" name="email" required></div>
+      <div class="field"><label>Senha (mín. 4 caracteres)</label><input class="input" type="password" name="senha" minlength="4" required></div>
       <div class="field">
         <label>Papel</label>
         <select class="input" name="papel">

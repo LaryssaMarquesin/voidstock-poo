@@ -8,12 +8,14 @@ CSS de marca. TODA a regra de negócio vem do modelo orientado a objetos em
 Execução local:  python -m uvicorn web_app:app --reload
 Acesse:          http://localhost:8000
 """
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 
 from src.dominio.item import Item
 from src.dominio.tipos import Papel
@@ -31,12 +33,42 @@ inventario = criar_inventario_demo()
 # Serviço de IA (lê GEMINI_API_KEY do ambiente).
 reconhecedor = ReconhecedorGemini()
 
+# Rotas públicas (não exigem login).
+PUBLICAS = {"/login", "/logout"}
+# Prefixos restritos a coordenadores (admin).
+PREFIXOS_ADMIN = ("/admin", "/cadastrar")
+
 
 def usuario_atual(req: Request):
-    """Resolve o usuário logado a partir do parâmetro ?user=<id>."""
-    uid = req.query_params.get("user")
-    usuarios = inventario.usuarios()
-    return next((u for u in usuarios if u.id == uid), usuarios[0])
+    """Resolve o usuário logado a partir da SESSÃO (cookie assinado)."""
+    uid = req.session.get("uid")
+    return inventario.buscar_usuario(uid) if uid else None
+
+
+# Middleware de autenticação: bloqueia tudo sem login e protege áreas de admin.
+# (definido ANTES do SessionMiddleware para que a sessão seja a camada externa)
+@app.middleware("http")
+async def guarda_de_acesso(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/static"):
+        return await call_next(request)
+    user = usuario_atual(request)
+    if path in PUBLICAS:
+        return await call_next(request)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
+    if path.startswith(PREFIXOS_ADMIN) and not user.pode_gerenciar():
+        return RedirectResponse("/", status_code=303)
+    return await call_next(request)
+
+
+# SessionMiddleware adicionado por último => camada mais externa (roda primeiro),
+# garantindo request.session disponível dentro da guarda de acesso acima.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.environ.get("SECRET_KEY", "voidstock-poo-chave-troque-em-producao"),
+    max_age=60 * 60 * 8,  # 8 horas
+)
 
 
 def ctx(req: Request, pagina: str, titulo: str, **extra) -> dict:
@@ -49,6 +81,28 @@ def ctx(req: Request, pagina: str, titulo: str, **extra) -> dict:
     }
     base.update(extra)
     return base
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request, erro: str = ""):
+    if usuario_atual(request):
+        return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse(request, "login.html", {"request": request, "erro": erro})
+
+
+@app.post("/login")
+def login(request: Request, email: str = Form(...), senha: str = Form(...)):
+    user = inventario.autenticar(email, senha)
+    if user is None:
+        return RedirectResponse("/login?erro=E-mail+ou+senha+incorretos", status_code=303)
+    request.session["uid"] = user.id
+    return RedirectResponse("/", status_code=303)
+
+
+@app.get("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse("/login", status_code=303)
 
 
 def _relatorio_30d() -> dict:
@@ -270,12 +324,13 @@ def criar_usuario_route(
     request: Request,
     nome: str = Form(...),
     email: str = Form(...),
+    senha: str = Form(""),
     papel: str = Form("user"),
 ):
     user = usuario_atual(request)
     try:
         p = Papel.ADMIN if papel == "admin" else Papel.USUARIO
-        inventario.criar_usuario(nome, email, p, user)
+        inventario.criar_usuario(nome, email, p, user, senha=senha)
         msg, tipo = f"Usuário '{nome}' criado.", "ok"
     except (ValueError, PermissionError) as e:
         msg, tipo = str(e), "err"

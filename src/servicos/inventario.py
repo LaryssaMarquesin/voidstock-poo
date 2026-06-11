@@ -41,7 +41,17 @@ class Inventario:
     def buscar_usuario(self, user_id: str) -> Usuario | None:
         return self._usuarios.buscar(user_id)
 
-    def criar_usuario(self, nome: str, email: str, papel: Papel, solicitante: Usuario) -> Usuario:
+    def autenticar(self, email: str, senha: str) -> Usuario | None:
+        """Retorna o usuário se o e-mail e a senha conferirem, senão None."""
+        email = (email or "").strip().lower()
+        for u in self._usuarios.listar():
+            if u.email == email and u.verificar_senha(senha):
+                return u
+        return None
+
+    def criar_usuario(
+        self, nome: str, email: str, papel: Papel, solicitante: Usuario, senha: str = "",
+    ) -> Usuario:
         """Cria um usuário (admin ou comum). Só coordenadores podem."""
         self._exigir_gestor(solicitante)
         if not nome.strip():
@@ -51,7 +61,9 @@ class Inventario:
             raise ValueError("E-mail inválido")
         if any(u.email == email for u in self._usuarios.listar()):
             raise ValueError("Já existe um usuário com este e-mail")
-        return self._usuarios.adicionar(criar_usuario(nome, email, papel))
+        if not senha or len(senha) < 4:
+            raise ValueError("Senha deve ter ao menos 4 caracteres")
+        return self._usuarios.adicionar(criar_usuario(nome, email, papel, senha))
 
     def alterar_papel(self, usuario: Usuario, papel: Papel, solicitante: Usuario) -> Usuario:
         """Troca o papel de um usuário. Como o papel é a subclasse, recria a
@@ -63,6 +75,7 @@ class Inventario:
             raise ValueError("Não é possível rebaixar o último coordenador")
         novo = criar_usuario(usuario.nome, usuario.email, papel)
         novo.restaurar_id(usuario.id)
+        novo.copiar_senha(usuario)  # mantém a senha ao trocar de papel
         return self._usuarios.adicionar(novo)  # mesma chave id -> substitui
 
     def remover_usuario(self, usuario: Usuario, solicitante: Usuario) -> bool:

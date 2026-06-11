@@ -21,10 +21,12 @@ def _img(slug: str, real: bool = False) -> str:
 def criar_inventario_demo() -> Inventario:
     inv = Inventario()
 
-    # Usuários
-    coord = inv.adicionar_usuario(Administrador("Robson Coordenador", "robson@pilhadigital.com.br"))
-    helen = inv.adicionar_usuario(UsuarioComum("Helen Ribeiro", "helen@artcont.com.br"))
-    lary = inv.adicionar_usuario(UsuarioComum("Laryssa Marquesin", "lmarquesin@gmail.com"))
+    # Usuários (com senhas de demonstração)
+    coord = inv.adicionar_usuario(
+        Administrador("Robson Coordenador", "robson@pilhadigital.com.br", "admin123")
+    )
+    helen = inv.adicionar_usuario(UsuarioComum("Helen Ribeiro", "helen@artcont.com.br", "user123"))
+    lary = inv.adicionar_usuario(UsuarioComum("Laryssa Marquesin", "lmarquesin@gmail.com", "user123"))
 
     # Categorias
     cat = {n: inv.adicionar_categoria(Categoria(n)) for n in [

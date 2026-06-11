@@ -34,14 +34,6 @@
         {% endif %}
       </nav>
       <div class="user">
-        <form method="get" action="/" style="padding:0 12px 8px;">
-          <label class="role" style="display:block;margin-bottom:4px;">Trocar usuário</label>
-          <select name="user" class="input" style="width:100%;height:34px;" onchange="this.form.submit()">
-            {% for u in usuarios %}
-            <option value="{{ u.id }}" {{ 'selected' if u.id==usuario.id }}>{{ u.nome }} · {{ u.papel.value }}</option>
-            {% endfor %}
-          </select>
-        </form>
         <div class="user-row">
           <div class="avatar">{{ usuario.nome[0]|upper }}</div>
           <div class="user-meta">
@@ -49,6 +41,10 @@
             <div class="role">{{ 'Coordenador' if usuario.pode_gerenciar() else 'Usuário' }}</div>
           </div>
         </div>
+        <a href="/logout" class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+          Sair
+        </a>
       </div>
     </aside>
 
