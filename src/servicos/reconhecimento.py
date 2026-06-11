@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
+import time
 import urllib.error
 import urllib.request
 from abc import ABC, abstractmethod
@@ -88,21 +90,8 @@ class ReconhecedorGemini(Reconhecedor):
             f"https://generativelanguage.googleapis.com/v1beta/models/"
             f"{self.MODELO}:generateContent"
         )
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(corpo).encode(),
-            headers={"Content-Type": "application/json", "x-goog-api-key": self._api_key},
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=45) as resp:
-                resultado = json.loads(resp.read().decode())
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                raise ErroReconhecimento("Limite de requisições atingido. Aguarde um momento.")
-            raise ErroReconhecimento("Falha no reconhecimento de imagem. Tente novamente.")
-        except urllib.error.URLError:
-            raise ErroReconhecimento("Não foi possível contatar o serviço de IA.")
+        dados_req = json.dumps(corpo).encode()
+        resultado = self._chamar_com_retry(url, dados_req)
 
         texto = (
             resultado.get("candidates", [{}])[0]
@@ -119,3 +108,44 @@ class ReconhecedorGemini(Reconhecedor):
             categoria=dados.get("categoria", ""),
             descricao=dados.get("descricao", ""),
         )
+
+    def _chamar_com_retry(self, url: str, corpo: bytes, tentativas: int = 3) -> dict:
+        """Chama o Gemini com retry em limite (429) e sobrecarga (500/503)."""
+        ultimo = ""
+        for n in range(tentativas):
+            req = urllib.request.Request(
+                url, data=corpo,
+                headers={"Content-Type": "application/json", "x-goog-api-key": self._api_key},
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=45) as resp:
+                    return json.loads(resp.read().decode())
+            except urllib.error.HTTPError as e:
+                detalhe = e.read().decode(errors="ignore")[:300]
+                print(f"[IA] HTTP {e.code}: {detalhe}", file=sys.stderr)
+                ultimo = f"HTTP {e.code}"
+                if e.code in (429, 500, 503) and n < tentativas - 1:
+                    time.sleep(2 * (n + 1))  # backoff: 2s, 4s
+                    continue
+                if e.code == 429:
+                    raise ErroReconhecimento(
+                        "Limite de requisições da IA atingido. Aguarde ~30s e tente de novo."
+                    )
+                if e.code in (500, 503):
+                    raise ErroReconhecimento(
+                        "Serviço de IA sobrecarregado no momento. Tente novamente em instantes."
+                    )
+                if e.code in (400, 403):
+                    raise ErroReconhecimento(
+                        "IA recusou a requisição (chave inválida, sem cota ou imagem não suportada)."
+                    )
+                raise ErroReconhecimento(f"Falha no reconhecimento ({ultimo}). Tente novamente.")
+            except urllib.error.URLError as e:
+                print(f"[IA] URLError: {e}", file=sys.stderr)
+                ultimo = "conexão"
+                if n < tentativas - 1:
+                    time.sleep(2 * (n + 1))
+                    continue
+                raise ErroReconhecimento("Não foi possível contatar o serviço de IA.")
+        raise ErroReconhecimento(f"Falha no reconhecimento ({ultimo}).")
