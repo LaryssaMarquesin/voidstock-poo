@@ -222,7 +222,7 @@ A IA Generativa **multiplicou a produtividade** da equipe: o que seria uma featu
 - O **conhecimento de SOLID e padrões** permitiu **identificar e corrigir** os erros da própria IA (CDN, 500, SRP, DRY) — a IA **errou**, e foi o juízo de engenharia que pegou (Q5).
 - As **boas práticas** (camadas, Strategy, repositório genérico) tornaram a base **expansível**: a feature de Dashboard reaproveitou o domínio existente quase sem alterá-lo — evidência de baixo acoplamento e código aberto à extensão.
 
-**Feature rodando e hospedada:** https://voidstock-poo.onrender.com/ → após login (coordenador `robson@pilhadigital.com.br` / `admin123`), a aba **Dashboard** mostra KPIs e 5 gráficos; a aba **Relatórios** exporta CSV.
+**Feature rodando e hospedada:** https://voidstock-poo.onrender.com/ → após login (coordenadora `lmarquesin@gmail.com` / `admin123`), a aba **Dashboard** mostra KPIs e 5 gráficos; a aba **Relatórios** exporta CSV.
 _Anexar prints do Dashboard e dos Relatórios como evidência._
 
 **Expansão clara do código** (o domínio cresceu sem reescrever o que existia): novos métodos de agregação em `Inventario`, `Movimentacao` ganhou data histórica, novas rotas `/dashboard` e `/relatorios`, e templates com Chart.js — tudo sobre as mesmas entidades OO.

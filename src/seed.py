@@ -23,10 +23,9 @@ def criar_inventario_demo() -> Inventario:
 
     # Usuários (com senhas de demonstração)
     coord = inv.adicionar_usuario(
-        Administrador("Robson Coordenador", "robson@pilhadigital.com.br", "admin123")
+        Administrador("Laryssa Marquesin", "lmarquesin@gmail.com", "admin123")
     )
     ana = inv.adicionar_usuario(UsuarioComum("Ana Pereira", "ana@voidstock.dev", "user123"))
-    lary = inv.adicionar_usuario(UsuarioComum("Laryssa Marquesin", "lmarquesin@gmail.com", "user123"))
 
     # Categorias
     cat = {n: inv.adicionar_categoria(Categoria(n)) for n in [
@@ -78,7 +77,7 @@ def criar_inventario_demo() -> Inventario:
 
     # Movimentações históricas (entradas e saídas) ao longo de ~30 dias.
     # Padrão determinístico (sem aleatoriedade) para ser reproduzível.
-    usuarios = [coord, ana, lary]
+    usuarios = [coord, ana]
     nomes = list(itens.keys())
     for d in range(30, 0, -1):
         dia = agora - timedelta(days=d)
