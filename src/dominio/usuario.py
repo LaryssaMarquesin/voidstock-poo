@@ -54,6 +54,14 @@ class Usuario(Entidade, ABC):
         self._salt = outro._salt
         self._senha_hash = outro._senha_hash
 
+    def atualizar_dados(self, nome: str, email: str) -> None:
+        if not nome.strip():
+            raise ValueError("Nome é obrigatório")
+        if "@" not in email:
+            raise ValueError("E-mail inválido")
+        self._nome = nome.strip()
+        self._email = email.strip().lower()
+
     @property
     @abstractmethod
     def papel(self) -> Papel:

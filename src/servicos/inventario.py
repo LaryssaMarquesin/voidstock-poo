@@ -65,6 +65,19 @@ class Inventario:
             raise ValueError("Senha deve ter ao menos 4 caracteres")
         return self._usuarios.adicionar(criar_usuario(nome, email, papel, senha))
 
+    def editar_usuario(
+        self, usuario: Usuario, solicitante: Usuario, nome: str, email: str, nova_senha: str = "",
+    ) -> Usuario:
+        """Edita nome/e-mail e, opcionalmente, a senha de um usuário."""
+        self._exigir_gestor(solicitante)
+        email_norm = (email or "").strip().lower()
+        if any(u.id != usuario.id and u.email == email_norm for u in self._usuarios.listar()):
+            raise ValueError("Já existe outro usuário com este e-mail")
+        usuario.atualizar_dados(nome, email)
+        if nova_senha:
+            usuario.definir_senha(nova_senha)
+        return usuario
+
     def alterar_papel(self, usuario: Usuario, papel: Papel, solicitante: Usuario) -> Usuario:
         """Troca o papel de um usuário. Como o papel é a subclasse, recria a
         instância correta preservando a identidade (id)."""

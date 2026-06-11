@@ -41,7 +41,7 @@
       <tbody>
         {% for u in lista %}
         <tr>
-          <td><div class="item-cell"><div class="avatar" style="height:32px;width:32px;font-size:13px;">{{ u.nome[0]|upper }}</div><b>{{ u.nome }}</b></div></td>
+          <td><div class="item-cell"><div class="avatar" style="height:32px;width:32px;font-size:13px;">{{ u.nome[0]|upper }}</div><a href="/admin/usuarios/{{ u.id }}?user={{ usuario.id }}" style="font-weight:600;color:#fff;">{{ u.nome }}</a></div></td>
           <td class="text-muted">{{ u.email }}</td>
           <td>
             {% if u.pode_gerenciar() %}<span class="pill" style="background:rgba(126,42,144,0.25);color:#c89bd6;">Coordenador</span>

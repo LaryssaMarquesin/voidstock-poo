@@ -337,6 +337,36 @@ def criar_usuario_route(
     return RedirectResponse(f"/admin/usuarios?user={user.id}&msg={msg}&msg_tipo={tipo}", status_code=303)
 
 
+@app.get("/admin/usuarios/{user_id}", response_class=HTMLResponse)
+def editar_usuario_page(request: Request, user_id: str, msg: str = "", msg_tipo: str = "ok"):
+    alvo = inventario.buscar_usuario(user_id)
+    if alvo is None:
+        return RedirectResponse("/admin/usuarios", status_code=303)
+    return templates.TemplateResponse(
+        request, "usuario_editar.html",
+        ctx(request, "usuarios", f"Editar — {alvo.nome}", alvo=alvo, msg=msg, msg_tipo=msg_tipo),
+    )
+
+
+@app.post("/admin/usuarios/{user_id}/editar")
+def editar_usuario_route(
+    request: Request, user_id: str,
+    nome: str = Form(...), email: str = Form(...), senha: str = Form(""),
+):
+    user = usuario_atual(request)
+    alvo = inventario.buscar_usuario(user_id)
+    try:
+        if alvo is None:
+            raise ValueError("Usuário não encontrado")
+        inventario.editar_usuario(alvo, user, nome=nome, email=email, nova_senha=senha)
+        msg, tipo = "Usuário atualizado.", "ok"
+    except (ValueError, PermissionError) as e:
+        msg, tipo = str(e), "err"
+    return RedirectResponse(
+        f"/admin/usuarios/{user_id}?msg={msg}&msg_tipo={tipo}", status_code=303
+    )
+
+
 @app.post("/admin/usuarios/{user_id}/papel")
 def alterar_papel_route(request: Request, user_id: str, papel: str = Form(...)):
     user = usuario_atual(request)

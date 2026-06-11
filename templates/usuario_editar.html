@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block actions %}
+  <a class="btn btn-ghost" href="/admin/usuarios?user={{ usuario.id }}">← Voltar</a>
+{% endblock %}
+{% block conteudo %}
+{% if msg %}<div class="note {{ msg_tipo }}" style="margin-bottom:16px;">{{ msg }}</div>{% endif %}
+
+<div class="grid grid-2" style="margin-top:0;align-items:start;">
+  <div class="card">
+    <h3>Editar usuário</h3>
+    <form method="post" action="/admin/usuarios/{{ alvo.id }}/editar?user={{ usuario.id }}" class="form-grid" style="max-width:none;">
+      <div class="field"><label>Nome</label><input class="input" type="text" name="nome" value="{{ alvo.nome }}" required></div>
+      <div class="field"><label>E-mail</label><input class="input" type="email" name="email" value="{{ alvo.email }}" required></div>
+      <div class="field">
+        <label>Nova senha <span class="text-muted">(deixe em branco para manter)</span></label>
+        <input class="input" type="password" name="senha" minlength="4" placeholder="••••••••">
+      </div>
+      <div><button class="btn" type="submit">Salvar alterações</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Papel</h3>
+    <p class="text-muted" style="font-size:13px;margin-bottom:12px;">
+      Atual: <b style="color:#fff;">{{ 'Coordenador' if alvo.pode_gerenciar() else 'Usuário' }}</b>
+    </p>
+    <form method="post" action="/admin/usuarios/{{ alvo.id }}/papel?user={{ usuario.id }}" style="display:flex;gap:8px;">
+      <select name="papel" class="input">
+        <option value="user" {{ 'selected' if not alvo.pode_gerenciar() }}>Usuário</option>
+        <option value="admin" {{ 'selected' if alvo.pode_gerenciar() }}>Coordenador</option>
+      </select>
+      <button class="btn btn-ghost" type="submit">Aplicar papel</button>
+    </form>
+
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(244,63,94,0.2);">
+      <h3 style="color:#fb7185;">Excluir usuário</h3>
+      <form method="post" action="/admin/usuarios/{{ alvo.id }}/excluir?user={{ usuario.id }}"
+            onsubmit="return confirm('Remover {{ alvo.nome }}?');">
+        <button class="btn" type="submit" style="background:linear-gradient(135deg,#9b1c31,#f26722);">Excluir usuário</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
