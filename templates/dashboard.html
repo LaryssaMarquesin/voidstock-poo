@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block conteudo %}
-<!-- HERO (igual ao dashboard original) -->
+<!-- HERO -->
 <div class="hero">
   <div class="blob" style="top:-40px;right:-40px;width:280px;height:280px;background:rgba(126,42,144,0.2);"></div>
   <div class="blob" style="bottom:-64px;left:-64px;width:280px;height:280px;background:rgba(242,103,34,0.15);"></div>
@@ -16,7 +16,7 @@
     <div class="v">{{ r.total_itens }}</div><div class="l">Itens cadastrados</div>
   </div>
   <div class="kpi cyan">
-    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
     <div class="v">{{ r.total_unidades }}</div><div class="l">Unidades em estoque</div>
   </div>
   <div class="kpi red">
@@ -25,26 +25,32 @@
   </div>
   <div class="kpi green">
     <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></svg>
-    <div class="v">{{ r.total_entradas }}</div><div class="l">Entradas</div>
+    <div class="v">{{ r.total_entradas }}</div><div class="l">Entradas (30d)</div>
   </div>
   <div class="kpi orange">
     <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/></svg>
-    <div class="v">{{ r.total_saidas }}</div><div class="l">Saídas</div>
+    <div class="v">{{ r.total_saidas }}</div><div class="l">Saídas (30d)</div>
   </div>
 </div>
 
-<!-- Grid: categorias + distribuição por local -->
-<div class="grid grid-2">
+<!-- Timeline 30 dias -->
+<div class="grid">
   <div class="card">
-    <h3>Itens por categoria</h3>
-    {% for nome, qtd in por_categoria %}
-    <div class="bar-row">
-      <div class="bar-top"><span>{{ nome }}</span><span class="text-muted">{{ qtd }} itens</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width: {{ (qtd / max_cat * 100) if max_cat else 0 }}%;"></div></div>
-    </div>
-    {% endfor %}
+    <h3>Movimentação diária — últimos 30 dias</h3>
+    <div style="height:300px"><canvas id="chartTimeline"></canvas></div>
   </div>
+</div>
 
+<!-- Saúde + categoria + semanas -->
+<div class="grid grid-3">
+  <div class="card"><h3>Saúde do estoque</h3><div style="height:240px"><canvas id="chartSaude"></canvas></div></div>
+  <div class="card"><h3>Itens por categoria</h3><div style="height:240px"><canvas id="chartCategoria"></canvas></div></div>
+  <div class="card"><h3>Entradas vs saídas (4 semanas)</h3><div style="height:240px"><canvas id="chartSemanas"></canvas></div></div>
+</div>
+
+<!-- Top itens + distribuição por local -->
+<div class="grid grid-2">
+  <div class="card"><h3>Top 7 itens mais movimentados (30d)</h3><div style="height:300px"><canvas id="chartTop"></canvas></div></div>
   <div class="card">
     <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Distribuição por local</h3>
     {% for l in por_local %}
@@ -69,9 +75,57 @@
       </div>
       {% endfor %}
     </div>
-    {% else %}
-    <p class="text-muted">Nenhum item abaixo do estoque mínimo. Boa gestão!</p>
-    {% endif %}
+    {% else %}<p class="text-muted">Nenhum item abaixo do estoque mínimo. Boa gestão!</p>{% endif %}
   </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+const PALETTE = ["#7e2a90","#f26722","#4dd4e0","#ffa14a","#4a1556","#b94fc9","#e84a8a"];
+Chart.defaults.color = "#a39db8";
+Chart.defaults.font.family = "Inter, sans-serif";
+Chart.defaults.borderColor = "rgba(255,255,255,0.06)";
+const tip = { backgroundColor:"#1a1226", borderColor:"rgba(255,255,255,0.1)", borderWidth:1 };
+
+const timeline = {{ serie_diaria|tojson }};
+new Chart(chartTimeline, {
+  type: "line",
+  data: { labels: timeline.labels, datasets: [
+    { label:"Entradas", data:timeline.entradas, borderColor:"#4dd4e0", backgroundColor:"rgba(77,212,224,0.15)", fill:true, tension:0.35, pointRadius:0 },
+    { label:"Saídas", data:timeline.saidas, borderColor:"#f26722", backgroundColor:"rgba(242,103,34,0.15)", fill:true, tension:0.35, pointRadius:0 },
+  ]},
+  options: { maintainAspectRatio:false, plugins:{tooltip:tip, legend:{labels:{boxWidth:12}}}, scales:{x:{ticks:{maxTicksLimit:10}}} }
+});
+
+const saude = {{ saude|tojson }};
+new Chart(chartSaude, {
+  type: "doughnut",
+  data: { labels:Object.keys(saude), datasets:[{ data:Object.values(saude), backgroundColor:["#4dd4e0","#ffa14a","#f26722"], borderWidth:0 }] },
+  options: { maintainAspectRatio:false, cutout:"60%", plugins:{tooltip:tip, legend:{position:"bottom",labels:{boxWidth:12}}} }
+});
+
+const cats = {{ por_categoria|tojson }};
+new Chart(chartCategoria, {
+  type: "pie",
+  data: { labels:cats.map(c=>c[0]), datasets:[{ data:cats.map(c=>c[1]), backgroundColor:PALETTE, borderWidth:0 }] },
+  options: { maintainAspectRatio:false, plugins:{tooltip:tip, legend:{position:"bottom",labels:{boxWidth:10,font:{size:10}}}} }
+});
+
+const semanas = {{ serie_semanal|tojson }};
+new Chart(chartSemanas, {
+  type: "bar",
+  data: { labels:semanas.labels, datasets:[
+    { label:"Entradas", data:semanas.entradas, backgroundColor:"#4dd4e0", borderRadius:6 },
+    { label:"Saídas", data:semanas.saidas, backgroundColor:"#f26722", borderRadius:6 },
+  ]},
+  options: { maintainAspectRatio:false, plugins:{tooltip:tip, legend:{labels:{boxWidth:12}}} }
+});
+
+const top = {{ top_itens|tojson }};
+new Chart(chartTop, {
+  type: "bar",
+  data: { labels:top.map(t=>t[0]), datasets:[{ data:top.map(t=>t[1]), backgroundColor:PALETTE, borderRadius:6 }] },
+  options: { indexAxis:"y", maintainAspectRatio:false, plugins:{tooltip:tip, legend:{display:false}} }
+});
+</script>
 {% endblock %}

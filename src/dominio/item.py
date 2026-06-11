@@ -18,6 +18,7 @@ class Item(Entidade):
         categoria: Categoria | None = None,
         local: Local | None = None,
         descricao: str | None = None,
+        imagem_url: str | None = None,
     ) -> None:
         super().__init__()
         if estoque_minimo < 0:
@@ -28,6 +29,7 @@ class Item(Entidade):
         self._local = local
         self._quantidade_atual = 0  # estado controlado: começa zerado
         self._estoque_minimo = estoque_minimo
+        self._imagem_url = imagem_url
 
     # ---- Leitura (propriedades) ----
     @property
@@ -53,6 +55,13 @@ class Item(Entidade):
     @property
     def estoque_minimo(self) -> int:
         return self._estoque_minimo
+
+    @property
+    def imagem_url(self) -> str | None:
+        return self._imagem_url
+
+    def definir_imagem(self, url: str | None) -> None:
+        self._imagem_url = url
 
     # ---- Comportamento (regras de negócio) ----
     def registrar_entrada(self, quantidade: int) -> None:

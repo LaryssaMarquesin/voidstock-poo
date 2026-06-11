@@ -27,7 +27,7 @@
     <tbody>
       {% for i in itens %}
       <tr>
-        <td><b>{{ i.nome }}</b></td>
+        <td><div class="item-cell"><img class="thumb" src="{{ i.imagem_url or '/static/img/gen/resistores.svg' }}" alt=""><b>{{ i.nome }}</b></div></td>
         <td class="text-muted">{{ i.categoria.nome if i.categoria else '—' }}</td>
         <td class="text-muted">{{ i.local.nome if i.local else '—' }}</td>
         <td class="right qt {{ 'crit' if i.esta_critico() }}">{{ i.quantidade_atual }}</td>

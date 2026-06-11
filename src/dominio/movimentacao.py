@@ -21,6 +21,7 @@ class Movimentacao(Entidade, ABC):
         quantidade: int,
         usuario: Usuario,
         motivo: str | None = None,
+        data: datetime | None = None,
     ) -> None:
         super().__init__()
         if quantidade <= 0:
@@ -29,7 +30,8 @@ class Movimentacao(Entidade, ABC):
         self._quantidade = quantidade
         self._usuario = usuario
         self._motivo = motivo
-        self._criado_em = datetime.now()
+        # `data` permite registrar movimentações históricas (usado no seed).
+        self._criado_em = data if data is not None else datetime.now()
 
     @property
     def item(self) -> Item:

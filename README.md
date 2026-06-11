@@ -76,6 +76,28 @@ streamlit run app.py
 
 ---
 
+## Reconhecimento de itens por imagem (IA)
+
+O "coração" do projeto: na tela **Cadastrar item**, envie a foto de um
+componente e a IA preenche **nome, categoria e descrição** automaticamente.
+
+- Implementado em `src/servicos/reconhecimento.py` com a API oficial do
+  **Google Gemini** (`gemini-2.5-flash`), atrás de uma interface OO abstrata
+  (`Reconhecedor`) — trocar de provedor não afeta o resto do app.
+- Requer a variável de ambiente **`GEMINI_API_KEY`** (chave grátis em
+  https://aistudio.google.com/apikey). Sem ela, o cadastro manual segue
+  funcionando e a tela avisa que a IA está indisponível.
+
+No Render: **Environment → Add Environment Variable** → `GEMINI_API_KEY`.
+Local: defina no shell antes de rodar (`$env:GEMINI_API_KEY="..."` no PowerShell).
+
+## Dashboard e relatórios
+
+- **Dashboard** com gráficos (Chart.js): movimentação diária (30 dias), saúde
+  do estoque, itens por categoria, entradas vs saídas por semana e top itens.
+- **Relatórios** com gráficos + tabela completa e **exportação CSV**.
+- Dados gerados a partir de ~30 dias de movimentações no seed.
+
 ## Modelo de domínio (resumo)
 
 - **Item** — nome, categoria, local, estoque mínimo e quantidade atual (encapsulada).

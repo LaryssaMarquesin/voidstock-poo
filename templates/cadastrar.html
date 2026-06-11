@@ -1,26 +1,106 @@
 {% extends "base.html" %}
 {% block conteudo %}
 {% if msg %}<div class="note {{ msg_tipo }}" style="margin-bottom:16px;">{{ msg }}</div>{% endif %}
-<div class="card">
-  <h3>Cadastrar novo item</h3>
-  <form method="post" action="/cadastrar?user={{ usuario.id }}" class="form-grid">
-    <div class="field">
-      <label>Nome do item</label>
-      <input class="input" type="text" name="nome" placeholder="Ex.: Sensor de presença PIR" required />
-    </div>
-    <div class="field">
-      <label>Categoria</label>
-      <select class="input" name="categoria">
-        <option value="">—</option>
-        {% for c in categorias %}<option value="{{ c.nome }}">{{ c.nome }}</option>{% endfor %}
-      </select>
-    </div>
-    {% if sugestao %}<div class="note info">💡 Local sugerido: <b>{{ sugestao.nome }}</b> — {{ sugestao.motivo }}</div>{% endif %}
-    <div class="row">
-      <div class="field"><label>Estoque mínimo</label><input class="input" type="number" name="minimo" min="0" value="0" /></div>
-      <div class="field"><label>Quantidade inicial</label><input class="input" type="number" name="quantidade" min="0" value="0" /></div>
-    </div>
-    <div><button class="btn" type="submit">Cadastrar item</button></div>
-  </form>
+{% if not ia_disponivel %}
+<div class="note warn" style="margin-bottom:16px;">
+  ⚠ Reconhecimento por IA indisponível: defina a variável <b>GEMINI_API_KEY</b> no ambiente.
+  O cadastro manual continua funcionando normalmente.
 </div>
+{% endif %}
+
+<div class="grid grid-2" style="margin-top:0;align-items:start;">
+  <!-- RECONHECIMENTO POR IMAGEM -->
+  <div class="card">
+    <h3>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3"/></svg>
+      Identificar por foto (IA)
+    </h3>
+    <p class="text-muted" style="font-size:13px;margin-bottom:14px;">
+      Fotografe ou envie a imagem de um componente. A IA sugere nome, categoria e descrição.
+    </p>
+    <label class="btn btn-ghost" style="cursor:pointer;display:inline-flex;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg>
+      Escolher imagem
+      <input id="foto" type="file" accept="image/*" capture="environment" style="display:none" {{ '' if ia_disponivel else 'disabled' }}>
+    </label>
+    <div id="previewBox" style="margin-top:16px;display:none;">
+      <img id="preview" class="thumb" style="width:100%;height:200px;border-radius:12px;object-fit:contain;background:#1a1424;" alt="">
+      <div id="iaStatus" class="note info" style="margin-top:12px;display:none;"></div>
+    </div>
+  </div>
+
+  <!-- FORMULÁRIO -->
+  <div class="card">
+    <h3>Dados do item</h3>
+    {% if not usuario.pode_gerenciar() %}
+    <div class="note err">🔒 Acesso restrito a coordenadores. Troque o usuário na barra lateral.</div>
+    {% else %}
+    <form method="post" action="/cadastrar?user={{ usuario.id }}" class="form-grid" style="max-width:none;">
+      <input type="hidden" name="imagem_url" id="imagem_url" value="">
+      <div class="field">
+        <label>Nome do item</label>
+        <input class="input" type="text" name="nome" id="nome" placeholder="Ex.: Sensor de presença PIR" required />
+      </div>
+      <div class="field">
+        <label>Categoria</label>
+        <select class="input" name="categoria" id="categoria">
+          <option value="">—</option>
+          {% for c in categorias %}<option value="{{ c.nome }}">{{ c.nome }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Descrição</label>
+        <input class="input" type="text" name="descricao" id="descricao" placeholder="Detalhes do item" />
+      </div>
+      <div class="row">
+        <div class="field"><label>Estoque mínimo</label><input class="input" type="number" name="minimo" min="0" value="0" /></div>
+        <div class="field"><label>Quantidade inicial</label><input class="input" type="number" name="quantidade" min="0" value="0" /></div>
+      </div>
+      <div><button class="btn" type="submit">Cadastrar item</button></div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+const foto = document.getElementById("foto");
+if (foto) foto.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const dataUrl = reader.result;
+    document.getElementById("preview").src = dataUrl;
+    document.getElementById("previewBox").style.display = "block";
+    document.getElementById("imagem_url").value = dataUrl;  // guarda a imagem para salvar
+    const status = document.getElementById("iaStatus");
+    status.style.display = "block";
+    status.className = "note info";
+    status.textContent = "🔍 Identificando com IA...";
+    try {
+      const resp = await fetch("/api/identificar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageDataUrl: dataUrl }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.erro || "Falha no reconhecimento");
+      if (data.nome) document.getElementById("nome").value = data.nome;
+      if (data.descricao) document.getElementById("descricao").value = data.descricao;
+      if (data.categoria) {
+        const sel = document.getElementById("categoria");
+        for (const opt of sel.options) {
+          if (opt.value.toLowerCase() === data.categoria.toLowerCase()) { sel.value = opt.value; break; }
+        }
+      }
+      status.className = "note ok";
+      status.textContent = "✓ Identificado: " + (data.nome || "—") + " · " + (data.categoria || "—");
+    } catch (err) {
+      status.className = "note err";
+      status.textContent = "✘ " + err.message;
+    }
+  };
+  reader.readAsDataURL(file);
+});
+</script>
 {% endblock %}

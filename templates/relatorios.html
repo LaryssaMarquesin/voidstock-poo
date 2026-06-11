@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block actions %}
+  <a class="btn" href="/relatorios/export.csv?user={{ usuario.id }}">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+    Exportar CSV
+  </a>
+{% endblock %}
+{% block conteudo %}
+<!-- Resumo -->
+<div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+  <div class="kpi purple"><div class="v">{{ r.total_itens }}</div><div class="l">Itens</div></div>
+  <div class="kpi cyan"><div class="v">{{ r.total_unidades }}</div><div class="l">Unidades</div></div>
+  <div class="kpi green"><div class="v">{{ r.total_entradas }}</div><div class="l">Entradas (30d)</div></div>
+  <div class="kpi orange"><div class="v">{{ r.total_saidas }}</div><div class="l">Saídas (30d)</div></div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card"><h3>Fluxo semanal de estoque</h3><div style="height:280px"><canvas id="chartFluxo"></canvas></div></div>
+  <div class="card"><h3>Composição por categoria</h3><div style="height:280px"><canvas id="chartCat"></canvas></div></div>
+</div>
+
+<!-- Tabela completa -->
+<div class="grid">
+  <div class="card" style="padding:0;overflow:hidden;">
+    <table class="vs">
+      <thead><tr><th>Item</th><th>Categoria</th><th>Local</th><th class="right">Qtd.</th><th class="right">Mínimo</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for i in itens %}
+        <tr>
+          <td><div class="item-cell"><img class="thumb" src="{{ i.imagem_url }}" alt=""><b>{{ i.nome }}</b></div></td>
+          <td class="text-muted">{{ i.categoria.nome if i.categoria else '—' }}</td>
+          <td class="text-muted">{{ i.local.nome if i.local else '—' }}</td>
+          <td class="right qt {{ 'crit' if i.esta_critico() }}">{{ i.quantidade_atual }}</td>
+          <td class="right text-muted">{{ i.estoque_minimo }}</td>
+          <td>{% if i.esta_critico() %}<span class="pill crit">crítico</span>{% else %}<span class="pill ok">ok</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+const PALETTE = ["#7e2a90","#f26722","#4dd4e0","#ffa14a","#4a1556","#b94fc9","#e84a8a"];
+Chart.defaults.color = "#a39db8"; Chart.defaults.font.family = "Inter, sans-serif";
+Chart.defaults.borderColor = "rgba(255,255,255,0.06)";
+const tip = { backgroundColor:"#1a1226", borderColor:"rgba(255,255,255,0.1)", borderWidth:1 };
+
+const sem = {{ serie_semanal|tojson }};
+new Chart(chartFluxo, {
+  type:"bar",
+  data:{ labels:sem.labels, datasets:[
+    {label:"Entradas", data:sem.entradas, backgroundColor:"#4dd4e0", borderRadius:6},
+    {label:"Saídas", data:sem.saidas, backgroundColor:"#f26722", borderRadius:6},
+  ]},
+  options:{ maintainAspectRatio:false, plugins:{tooltip:tip, legend:{labels:{boxWidth:12}}} }
+});
+
+const cats = {{ por_categoria|tojson }};
+new Chart(chartCat, {
+  type:"doughnut",
+  data:{ labels:cats.map(c=>c[0]), datasets:[{ data:cats.map(c=>c[1]), backgroundColor:PALETTE, borderWidth:0 }] },
+  options:{ maintainAspectRatio:false, cutout:"58%", plugins:{tooltip:tip, legend:{position:"bottom",labels:{boxWidth:10,font:{size:10}}}} }
+});
+</script>
+{% endblock %}

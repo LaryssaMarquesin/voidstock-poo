@@ -1,0 +1,121 @@
+"""Reconhecimento de itens por imagem (IA).
+
+Demonstra: ABSTRAÇÃO de um serviço externo atrás de uma interface OO. O
+`Reconhecedor` é abstrato; `ReconhecedorGemini` implementa a chamada à API
+oficial do Google Gemini. Trocar de provedor de IA não afeta o resto do app
+— basta outra implementação de `Reconhecedor`.
+
+É o "coração" do projeto: o usuário fotografa um componente e o sistema
+sugere nome, categoria e descrição automaticamente.
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import urllib.error
+import urllib.request
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
+CATEGORIAS_VALIDAS = [
+    "Componentes Eletrônicos", "Sensores", "Atuadores", "Cabos",
+    "Ferramentas", "Mecânica", "Microcontroladores", "Outros",
+]
+
+_PROMPT = (
+    "Você identifica componentes técnicos (eletrônica, mecânica, ferramentas de "
+    "laboratório). Responda SEMPRE em JSON estrito no formato "
+    '{"nome":"string curta","categoria":"string","descricao":"string"}. '
+    "Categoria deve ser uma de: " + ", ".join(CATEGORIAS_VALIDAS) + ". "
+    "Sem texto fora do JSON."
+)
+
+
+@dataclass
+class ItemReconhecido:
+    nome: str
+    categoria: str
+    descricao: str
+
+
+class ErroReconhecimento(Exception):
+    """Erro amigável para exibir ao usuário."""
+
+
+class Reconhecedor(ABC):
+    """Contrato de um serviço de reconhecimento de imagem."""
+
+    @abstractmethod
+    def identificar(self, data_url: str) -> ItemReconhecido: ...
+
+
+class ReconhecedorGemini(Reconhecedor):
+    """Implementação usando a API oficial do Google Gemini."""
+
+    MODELO = "gemini-2.5-flash"
+
+    def __init__(self, api_key: str | None = None) -> None:
+        self._api_key = api_key or os.environ.get("GEMINI_API_KEY")
+
+    @property
+    def disponivel(self) -> bool:
+        return bool(self._api_key)
+
+    def identificar(self, data_url: str) -> ItemReconhecido:
+        if not self._api_key:
+            raise ErroReconhecimento("Chave de IA ausente (defina GEMINI_API_KEY).")
+
+        match = re.match(r"^data:(.+?);base64,(.+)$", data_url, re.S)
+        if not match:
+            raise ErroReconhecimento("Formato de imagem inválido.")
+        mime_type, base64_data = match.group(1), match.group(2)
+
+        corpo = {
+            "system_instruction": {"parts": [{"text": _PROMPT}]},
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": "Identifique este item de laboratório e responda em JSON."},
+                        {"inline_data": {"mime_type": mime_type, "data": base64_data}},
+                    ],
+                }
+            ],
+            "generationConfig": {"responseMimeType": "application/json"},
+        }
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{self.MODELO}:generateContent"
+        )
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(corpo).encode(),
+            headers={"Content-Type": "application/json", "x-goog-api-key": self._api_key},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                resultado = json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                raise ErroReconhecimento("Limite de requisições atingido. Aguarde um momento.")
+            raise ErroReconhecimento("Falha no reconhecimento de imagem. Tente novamente.")
+        except urllib.error.URLError:
+            raise ErroReconhecimento("Não foi possível contatar o serviço de IA.")
+
+        texto = (
+            resultado.get("candidates", [{}])[0]
+            .get("content", {})
+            .get("parts", [{}])[0]
+            .get("text", "{}")
+        )
+        try:
+            dados = json.loads(texto)
+        except json.JSONDecodeError:
+            dados = {}
+        return ItemReconhecido(
+            nome=dados.get("nome", ""),
+            categoria=dados.get("categoria", ""),
+            descricao=dados.get("descricao", ""),
+        )

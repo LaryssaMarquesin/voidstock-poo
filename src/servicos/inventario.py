@@ -6,7 +6,10 @@ original, estava espalhada entre server functions e triggers SQL:
 controle de permissão, aplicação de movimentações, itens críticos,
 relatório e a sugestão automática de local.
 """
+import csv
+import io
 from collections import Counter
+from datetime import datetime, timedelta
 
 from src.dominio.categoria import Categoria
 from src.dominio.item import Item
@@ -70,16 +73,18 @@ class Inventario:
 
     # ---- Movimentações (qualquer usuário autenticado) ----
     def registrar_entrada(
-        self, item: Item, quantidade: int, usuario: Usuario, motivo: str | None = None
+        self, item: Item, quantidade: int, usuario: Usuario,
+        motivo: str | None = None, data: datetime | None = None,
     ) -> Entrada:
-        mov = Entrada(item, quantidade, usuario, motivo)
+        mov = Entrada(item, quantidade, usuario, motivo, data)
         self._aplicar(mov)
         return mov
 
     def registrar_saida(
-        self, item: Item, quantidade: int, usuario: Usuario, motivo: str | None = None
+        self, item: Item, quantidade: int, usuario: Usuario,
+        motivo: str | None = None, data: datetime | None = None,
     ) -> Saida:
-        mov = Saida(item, quantidade, usuario, motivo)
+        mov = Saida(item, quantidade, usuario, motivo, data)
         self._aplicar(mov)
         return mov
 
@@ -162,6 +167,89 @@ class Inventario:
         mais_livre_id = min(ocupacao, key=ocupacao.get)
         local = next((l for l in locais if l.id == mais_livre_id), None)
         return local, f"{local.nome} é o local mais livre" if local else "—"
+
+    # ---- Séries para gráficos (dashboard / relatórios) ----
+    def serie_diaria(self, dias: int = 30, ate: datetime | None = None) -> dict:
+        """Entradas e saídas agregadas por dia nos últimos `dias`."""
+        from src.dominio.tipos import TipoMovimentacao
+
+        fim = (ate or datetime.now()).date()
+        inicio = fim - timedelta(days=dias - 1)
+        labels, entradas, saidas = [], [], []
+        for n in range(dias):
+            dia = inicio + timedelta(days=n)
+            labels.append(dia.strftime("%d/%m"))
+            ent = sum(
+                m.quantidade for m in self._movimentacoes
+                if m.criado_em.date() == dia and m.tipo == TipoMovimentacao.ENTRADA
+            )
+            sai = sum(
+                m.quantidade for m in self._movimentacoes
+                if m.criado_em.date() == dia and m.tipo == TipoMovimentacao.SAIDA
+            )
+            entradas.append(ent)
+            saidas.append(sai)
+        return {"labels": labels, "entradas": entradas, "saidas": saidas}
+
+    def serie_semanal(self, semanas: int = 4, ate: datetime | None = None) -> dict:
+        """Entradas e saídas por semana (últimas `semanas` semanas)."""
+        from src.dominio.tipos import TipoMovimentacao
+
+        fim = (ate or datetime.now()).date()
+        labels, entradas, saidas = [], [], []
+        for s in range(semanas - 1, -1, -1):
+            ini = fim - timedelta(days=(s + 1) * 7 - 1)
+            fim_sem = fim - timedelta(days=s * 7)
+            labels.append(f"Sem {semanas - s}")
+            ent = sum(
+                m.quantidade for m in self._movimentacoes
+                if ini <= m.criado_em.date() <= fim_sem and m.tipo == TipoMovimentacao.ENTRADA
+            )
+            sai = sum(
+                m.quantidade for m in self._movimentacoes
+                if ini <= m.criado_em.date() <= fim_sem and m.tipo == TipoMovimentacao.SAIDA
+            )
+            entradas.append(ent)
+            saidas.append(sai)
+        return {"labels": labels, "entradas": entradas, "saidas": saidas}
+
+    def top_itens_movimentados(self, limite: int = 7, dias: int = 30) -> list[tuple[str, int]]:
+        limite_data = (datetime.now() - timedelta(days=dias)).date()
+        contagem = Counter()
+        for m in self._movimentacoes:
+            if m.criado_em.date() >= limite_data:
+                contagem[m.item.nome] += m.quantidade
+        return contagem.most_common(limite)
+
+    def saude_estoque(self) -> dict:
+        """Classifica itens em Saudável / Atenção / Crítico."""
+        saudavel = atencao = critico = 0
+        for i in self.itens():
+            if i.quantidade_atual <= i.estoque_minimo:
+                critico += 1
+            elif i.quantidade_atual <= i.estoque_minimo * 1.5:
+                atencao += 1
+            else:
+                saudavel += 1
+        return {"Saudável": saudavel, "Atenção": atencao, "Crítico": critico}
+
+    def exportar_csv(self) -> str:
+        """Gera um relatório CSV do inventário."""
+        buffer = io.StringIO()
+        escritor = csv.writer(buffer)
+        escritor.writerow(
+            ["Item", "Categoria", "Local", "Quantidade", "Estoque mínimo", "Status"]
+        )
+        for i in self.itens():
+            escritor.writerow([
+                i.nome,
+                i.categoria.nome if i.categoria else "",
+                i.local.nome if i.local else "",
+                i.quantidade_atual,
+                i.estoque_minimo,
+                "Crítico" if i.esta_critico() else "OK",
+            ])
+        return buffer.getvalue()
 
     # ---- Apoio ----
     @staticmethod
