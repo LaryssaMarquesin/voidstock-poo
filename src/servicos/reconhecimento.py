@@ -150,15 +150,21 @@ class ReconhecedorGemini(Reconhecedor):
                 with urllib.request.urlopen(req, timeout=45) as resp:
                     return json.loads(resp.read().decode())
             except urllib.error.HTTPError as e:
-                detalhe = e.read().decode(errors="ignore")[:300]
+                detalhe = e.read().decode(errors="ignore")[:500]
                 print(f"[IA] HTTP {e.code}: {detalhe}", file=sys.stderr)
                 ultimo = f"HTTP {e.code}"
                 if e.code in (429, 500, 503) and n < tentativas - 1:
                     time.sleep(0.4 * (n + 1))  # backoff curto: 0.4s
                     continue
                 if e.code == 429:
+                    por_dia = "PerDay" in detalhe or "per day" in detalhe.lower()
+                    if por_dia:
+                        raise ErroReconhecimento(
+                            "Cota DIÁRIA gratuita do Gemini esgotada. "
+                            "Gere uma nova chave em outro projeto ou ative o faturamento."
+                        )
                     raise ErroReconhecimento(
-                        "Limite de requisições da IA atingido. Aguarde ~30s e tente de novo."
+                        "Limite por minuto da IA atingido. Aguarde ~30s e tente de novo."
                     )
                 if e.code in (500, 503):
                     raise ErroReconhecimento(
