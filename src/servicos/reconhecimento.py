@@ -28,9 +28,9 @@ CATEGORIAS_VALIDAS = [
 _PROMPT = (
     "Você identifica componentes técnicos (eletrônica, mecânica, ferramentas de "
     "laboratório). Responda SEMPRE em JSON estrito no formato "
-    '{"nome":"string curta","categoria":"string","descricao":"string"}. '
+    '{"nome":"string curta","categoria":"string","descricao":"frase curta (máx 120 caracteres)"}. '
     "Categoria deve ser uma de: " + ", ".join(CATEGORIAS_VALIDAS) + ". "
-    "Sem texto fora do JSON."
+    "Seja direto e rápido. Sem texto fora do JSON."
 )
 
 
@@ -59,7 +59,8 @@ class ReconhecedorGemini(Reconhecedor):
     estiver sobrecarregado (503), cai para o próximo automaticamente.
     """
 
-    MODELOS = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest"]
+    # Ordem: modelo rápido (sem "thinking") primeiro; fallback se sobrecarregar.
+    MODELOS = ["gemini-2.0-flash", "gemini-2.5-flash"]
 
     def __init__(self, api_key: str | None = None) -> None:
         self._api_key = api_key or os.environ.get("GEMINI_API_KEY")
@@ -77,20 +78,6 @@ class ReconhecedorGemini(Reconhecedor):
             raise ErroReconhecimento("Formato de imagem inválido.")
         mime_type, base64_data = match.group(1), match.group(2)
 
-        corpo = {
-            "system_instruction": {"parts": [{"text": _PROMPT}]},
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [
-                        {"text": "Identifique este item de laboratório e responda em JSON."},
-                        {"inline_data": {"mime_type": mime_type, "data": base64_data}},
-                    ],
-                }
-            ],
-            "generationConfig": {"responseMimeType": "application/json"},
-        }
-        dados_req = json.dumps(corpo).encode()
         resultado = None
         ultimo_erro: ErroReconhecimento | None = None
         for modelo in self.MODELOS:
@@ -98,8 +85,9 @@ class ReconhecedorGemini(Reconhecedor):
                 f"https://generativelanguage.googleapis.com/v1beta/models/"
                 f"{modelo}:generateContent"
             )
+            corpo = self._montar_corpo(modelo, mime_type, base64_data)
             try:
-                resultado = self._chamar_com_retry(url, dados_req)
+                resultado = self._chamar_com_retry(url, json.dumps(corpo).encode())
                 break
             except ErroReconhecimento as e:
                 ultimo_erro = e
@@ -124,8 +112,33 @@ class ReconhecedorGemini(Reconhecedor):
             descricao=dados.get("descricao", ""),
         )
 
-    def _chamar_com_retry(self, url: str, corpo: bytes, tentativas: int = 3) -> dict:
-        """Chama o Gemini com retry em limite (429) e sobrecarga (500/503)."""
+    @staticmethod
+    def _montar_corpo(modelo: str, mime_type: str, base64_data: str) -> dict:
+        """Monta o corpo da requisição com config otimizada para velocidade."""
+        generation: dict = {
+            "responseMimeType": "application/json",
+            "maxOutputTokens": 250,
+            "temperature": 0.2,
+        }
+        # Modelos 2.5 "pensam" por padrão (lento). Desliga o thinking.
+        if modelo.startswith("gemini-2.5"):
+            generation["thinkingConfig"] = {"thinkingBudget": 0}
+        return {
+            "system_instruction": {"parts": [{"text": _PROMPT}]},
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": "Identifique este item de laboratório e responda em JSON."},
+                        {"inline_data": {"mime_type": mime_type, "data": base64_data}},
+                    ],
+                }
+            ],
+            "generationConfig": generation,
+        }
+
+    def _chamar_com_retry(self, url: str, corpo: bytes, tentativas: int = 2) -> dict:
+        """Chama o Gemini com retry rápido em limite (429) e sobrecarga (500/503)."""
         ultimo = ""
         for n in range(tentativas):
             req = urllib.request.Request(
@@ -141,7 +154,7 @@ class ReconhecedorGemini(Reconhecedor):
                 print(f"[IA] HTTP {e.code}: {detalhe}", file=sys.stderr)
                 ultimo = f"HTTP {e.code}"
                 if e.code in (429, 500, 503) and n < tentativas - 1:
-                    time.sleep(2 * (n + 1))  # backoff: 2s, 4s
+                    time.sleep(0.4 * (n + 1))  # backoff curto: 0.4s
                     continue
                 if e.code == 429:
                     raise ErroReconhecimento(
@@ -160,7 +173,7 @@ class ReconhecedorGemini(Reconhecedor):
                 print(f"[IA] URLError: {e}", file=sys.stderr)
                 ultimo = "conexão"
                 if n < tentativas - 1:
-                    time.sleep(2 * (n + 1))
+                    time.sleep(0.4 * (n + 1))
                     continue
                 raise ErroReconhecimento("Não foi possível contatar o serviço de IA.")
         raise ErroReconhecimento(f"Falha no reconhecimento ({ultimo}).")
