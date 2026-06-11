@@ -54,6 +54,18 @@ class Usuario(Entidade, ABC):
         self._salt = outro._salt
         self._senha_hash = outro._senha_hash
 
+    # ---- Apoio à persistência (banco de dados) ----
+    def exportar_salt(self) -> str:
+        return self._salt
+
+    def exportar_hash(self) -> str:
+        return self._senha_hash
+
+    def restaurar_credenciais(self, salt: str, senha_hash: str) -> None:
+        """Reidrata as credenciais ao carregar o usuário do banco."""
+        self._salt = salt
+        self._senha_hash = senha_hash
+
     def atualizar_dados(self, nome: str, email: str) -> None:
         if not nome.strip():
             raise ValueError("Nome é obrigatório")

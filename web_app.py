@@ -19,6 +19,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from src.dominio.item import Item
 from src.dominio.tipos import Papel
+from src.repositorio.persistencia import PersistenciaPostgres
 from src.seed import criar_inventario_demo
 from src.servicos.reconhecimento import ErroReconhecimento, ReconhecedorGemini
 
@@ -27,8 +28,23 @@ app = FastAPI(title="VoidStock POO")
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
 
-# Estado único em memória (demo). O Inventário é o agregado OO central.
-inventario = criar_inventario_demo()
+# Persistência em PostgreSQL (opcional: sem DATABASE_URL, roda só em memória).
+persistencia = PersistenciaPostgres()
+if persistencia.disponivel:
+    persistencia.criar_schema()
+    inventario = persistencia.carregar()  # recarrega o estado salvo, se houver
+    if inventario is None:
+        # Banco vazio: popula com os dados de demonstração e grava.
+        inventario = criar_inventario_demo()
+        persistencia.salvar(inventario)
+else:
+    # Sem banco configurado: estado único em memória (demo).
+    inventario = criar_inventario_demo()
+
+
+def persistir() -> None:
+    """Grava o estado atual do Inventário no banco (no-op se não houver banco)."""
+    persistencia.salvar(inventario)
 
 # Serviço de IA (lê GEMINI_API_KEY do ambiente).
 reconhecedor = ReconhecedorGemini()
@@ -236,6 +252,7 @@ def editar_item(
             item, user, nome=nome, estoque_minimo=minimo, categoria=cat,
             local=loc, descricao=descricao or None, imagem_url=img_arg,
         )
+        persistir()
         msg, tipo_msg = "Item atualizado com sucesso.", "ok"
     except (ValueError, PermissionError) as e:
         msg, tipo_msg = str(e), "err"
@@ -252,6 +269,7 @@ def excluir_item(request: Request, item_id: str):
         if item is None:
             raise ValueError("Item não encontrado")
         inventario.remover_item(item, user)
+        persistir()
         return RedirectResponse(
             f"/inventario?user={user.id}", status_code=303
         )
@@ -288,6 +306,7 @@ def registrar_mov(
             inventario.registrar_entrada(item, quantidade, user, motivo or None)
         else:
             inventario.registrar_saida(item, quantidade, user, motivo or None)
+        persistir()
         msg, tipo_msg = f"{tipo.capitalize()} registrada. {item.nome}: {item.quantidade_atual} un.", "ok"
     except (ValueError, PermissionError) as e:
         msg, tipo_msg = str(e), "err"
@@ -331,6 +350,7 @@ def criar_usuario_route(
     try:
         p = Papel.ADMIN if papel == "admin" else Papel.USUARIO
         inventario.criar_usuario(nome, email, p, user, senha=senha)
+        persistir()
         msg, tipo = f"Usuário '{nome}' criado.", "ok"
     except (ValueError, PermissionError) as e:
         msg, tipo = str(e), "err"
@@ -359,6 +379,7 @@ def editar_usuario_route(
         if alvo is None:
             raise ValueError("Usuário não encontrado")
         inventario.editar_usuario(alvo, user, nome=nome, email=email, nova_senha=senha)
+        persistir()
         msg, tipo = "Usuário atualizado.", "ok"
     except (ValueError, PermissionError) as e:
         msg, tipo = str(e), "err"
@@ -376,6 +397,7 @@ def alterar_papel_route(request: Request, user_id: str, papel: str = Form(...)):
             raise ValueError("Usuário não encontrado")
         p = Papel.ADMIN if papel == "admin" else Papel.USUARIO
         inventario.alterar_papel(alvo, p, user)
+        persistir()
         msg, tipo = "Papel atualizado.", "ok"
     except (ValueError, PermissionError) as e:
         msg, tipo = str(e), "err"
@@ -390,6 +412,7 @@ def excluir_usuario_route(request: Request, user_id: str):
         if alvo is None:
             raise ValueError("Usuário não encontrado")
         inventario.remover_usuario(alvo, user)
+        persistir()
         msg, tipo = "Usuário removido.", "ok"
     except (ValueError, PermissionError) as e:
         msg, tipo = str(e), "err"
@@ -415,6 +438,7 @@ def cadastrar_item(
             descricao=descricao or None, imagem_url=imagem_url or None,
         )
         inventario.cadastrar_item(item, user, quantidade_inicial=quantidade)
+        persistir()
         msg, tipo_msg = f"Item '{nome}' cadastrado com sucesso.", "ok"
     except (ValueError, PermissionError) as e:
         msg, tipo_msg = str(e), "err"

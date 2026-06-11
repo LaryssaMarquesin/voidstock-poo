@@ -147,6 +147,16 @@ class Inventario:
     def buscar_item(self, item_id: str) -> Item | None:
         return self._itens.buscar(item_id)
 
+    # ---- Apoio à persistência (carga a partir do banco de dados) ----
+    def carregar_item(self, item: Item) -> Item:
+        """Insere um item já reconstruído (do banco), sem checar permissão."""
+        return self._itens.adicionar(item)
+
+    def adicionar_movimentacao_historica(self, mov: Movimentacao) -> None:
+        """Anexa uma movimentação do histórico SEM reaplicá-la ao estoque
+        (a quantidade do item já vem reidratada do banco)."""
+        self._movimentacoes.append(mov)
+
     def remover_item(self, item: Item, solicitante: Usuario) -> bool:
         self._exigir_gestor(solicitante)
         return self._itens.remover(item.id)
